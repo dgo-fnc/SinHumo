@@ -318,6 +318,16 @@ html,body{height:100%;height:-webkit-fill-available;background:var(--bg);color:v
         <input id="ob-price" type="number" placeholder="Ej: 8.00" min="0.5" max="200" step="0.5"></div>
       <div class="sf"><label>Cigarrillos por cajetilla</label>
         <input id="ob-pack" type="number" value="20" min="5" max="30"></div>
+      <div style="background:rgba(99,102,241,.12);border:1px solid rgba(99,102,241,.3);border-radius:12px;padding:12px;margin-top:4px">
+        <div style="font-size:12px;color:#A5B4FC;font-weight:700;margin-bottom:8px">⏰ Tu horario activo</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div class="sf" style="margin:0"><label style="font-size:12px">Despiertas a las</label>
+            <input id="ob-wake" type="number" value="6" min="0" max="12" style="text-align:center"></div>
+          <div class="sf" style="margin:0"><label style="font-size:12px">Te duermes a las</label>
+            <input id="ob-sleep" type="number" value="22" min="13" max="23" style="text-align:center"></div>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px;line-height:1.4">Los intervalos entre cigarros y las alertas se calcularán solo durante tus horas activas.</div>
+      </div>
     </div>
     <div class="onb-footer">
       <button class="btn-p" onclick="ob1()">Continuar →</button>
@@ -525,6 +535,16 @@ html,body{height:100%;height:-webkit-fill-available;background:var(--bg);color:v
       <div class="sf"><label>Semanas hasta llegar a 0</label><input id="pl-w" type="number" min="2" max="16"></div>
       <button class="btn-p" onclick="recalc()" style="margin-top:4px">Recalcular plan</button>
     </div>
+    <div class="card mt8">
+      <div class="lbl">⏰ Horario activo</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="sf" style="margin:0"><label>Despiertas a las</label>
+          <input id="pl-wake" type="number" min="0" max="12" style="text-align:center"></div>
+        <div class="sf" style="margin:0"><label>Te duermes a las</label>
+          <input id="pl-sleep" type="number" min="13" max="23" style="text-align:center"></div>
+      </div>
+      <button class="btn-p" onclick="recalcHorario()" style="margin-top:8px">Actualizar horario</button>
+    </div>
     <div class="card mt8" style="border:1px solid rgba(239,68,68,.25);background:rgba(239,68,68,.05)">
       <div class="lbl" style="color:#EF4444">🗑️ Zona de reinicio</div>
       <div style="font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.55">Borra todos tus datos y vuelve al inicio. Útil para empezar de cero o probar la app antes de tu fecha real.</div>
@@ -718,7 +738,8 @@ const HEALTH=[
 const KEY='sinhumo_v3';
 function defStore(){return{
   cfg:{name:'',base:15,price:8,pack:20,weeks:5,setupDone:false,startDate:null,
-       baselineDays:0,baselineDone:false,lastResumeTs:null,notifEnabled:false},
+       baselineDays:0,baselineDone:false,lastResumeTs:null,notifEnabled:false,
+       wakeHour:6,sleepHour:22},
   log:[],   // {id,ts,emotion}
   done:[],  // earned achievement ids
   retos:[],  // completed reto ids
@@ -742,11 +763,12 @@ function logTdy(){return logDay(tdy());}
 /* ════════════════════════════════════════════
    PLAN
 ════════════════════════════════════════════ */
-const WMIN=960;
+function wakeMins(){return((S.cfg.sleepHour||22)-(S.cfg.wakeHour||6))*60;}
+function isAwake(){const h=new Date().getHours();return h>=(S.cfg.wakeHour||6)&&h<(S.cfg.sleepHour||22);}
 function mkPlan(base,weeks){
   return Array.from({length:weeks},(_, i)=>{
     const w=i+1,target=w===weeks?0:Math.max(w<weeks?1:0,Math.round(base*(1-w/weeks)));
-    return{w,target,intv:target>0?Math.round(WMIN/target):null,d0:(w-1)*7+1,d1:w*7};
+    return{w,target,intv:target>0?Math.round(wakeMins()/target):null,d0:(w-1)*7+1,d1:w*7};
   });
 }
 function planAt(ds){
@@ -852,8 +874,13 @@ function ob1(){
   const base=parseInt(document.getElementById('ob-base').value)||0;
   const price=parseFloat(document.getElementById('ob-price').value)||8;
   const pack=parseInt(document.getElementById('ob-pack').value)||20;
+  const wake=parseInt(document.getElementById('ob-wake').value);
+  const sleep=parseInt(document.getElementById('ob-sleep').value);
   if(!name||base<1){toast('Por favor completa todos los campos');return;}
+  if(isNaN(wake)||wake<0||wake>12||isNaN(sleep)||sleep<13||sleep>23||sleep<=wake){
+    toast('Revisa las horas de tu horario (despertar 0–12, dormir 13–23)');return;}
   S.cfg.name=name;S.cfg.base=base;S.cfg.price=price;S.cfg.pack=pack;
+  S.cfg.wakeHour=wake;S.cfg.sleepHour=sleep;
   S.cfg.weeks=Math.max(4,Math.min(10,Math.ceil(base/3)));
   obBack(1,2);
 }
@@ -919,16 +946,30 @@ let tickI=null;
 function startTick(){if(tickI)clearInterval(tickI);tickI=setInterval(tick,1000);tick();}
 function tick(){
   const last=S.log.length?S.log[S.log.length-1]:null;
-  const el=last?Date.now()-new Date(last.ts):null;
-  document.getElementById('timer-v').textContent=el!=null?fmtMs(el):'--:--:--';
-  if(el==null){document.getElementById('timer-s').textContent='Registra tu último cigarro para iniciar';}
-  else{
+  const wake=S.cfg.wakeHour||6,sleep=S.cfg.sleepHour||22;
+  if(!isAwake()){
+    document.getElementById('timer-v').textContent='😴';
+    document.getElementById('timer-s').textContent=`Horario de descanso · tu día empieza a las ${p2(wake)}:00h`;
+    updateHealth(last?Date.now()-new Date(last.ts):null);
+    updateNext();
+    return;
+  }
+  // During waking hours: count from last cig OR from today's wake time, whichever is more recent
+  const wakeToday=new Date();wakeToday.setHours(wake,0,0,0);
+  const lastTs=last?new Date(last.ts):null;
+  const effectiveStart=(!lastTs||lastTs<wakeToday)?wakeToday:lastTs;
+  const el=Date.now()-effectiveStart.getTime();
+  const fullEl=last?Date.now()-new Date(last.ts):null;
+  document.getElementById('timer-v').textContent=fmtMs(el);
+  if(!last||lastTs<wakeToday){
+    document.getElementById('timer-s').textContent=last?'Desde que despertaste · ¡Sin fumar esta mañana! 💪':'Registra tu primer cigarro del día';
+  } else {
     const m=Math.floor(el/6e4);
     if(m<60)document.getElementById('timer-s').textContent=`desde las ${fmtT(last.ts)}`;
-    else if(m<1440){const h=Math.floor(m/60),mn=m%60;document.getElementById('timer-s').textContent=`¡${h}h ${mn}m de salud ganada!`;}
+    else if(m<1440){const h=Math.floor(m/60),mn=m%60;document.getElementById('timer-s').textContent=`¡${h}h ${mn}m de control!`;}
     else{const d=Math.floor(m/1440);document.getElementById('timer-s').textContent=`¡${d} día${d>1?'s':''} sin fumar! 🎉`;}
   }
-  updateHealth(el);
+  updateHealth(fullEl);
   updateNext();
 }
 function updateHealth(el){
@@ -944,6 +985,7 @@ function updateHealth(el){
 }
 function updateNext(){
   const pw=curWeek(),el=document.getElementById('next-txt'),ps=document.getElementById('ps-p');
+  if(!isAwake()){el.textContent=`Estás en descanso. Tu horario activo empieza a las ${p2(S.cfg.wakeHour||6)}:00h.`;ps.textContent='😴';return;}
   if(isBaseline()){el.textContent='Período de medición: sin metas todavía. Solo registra.';ps.textContent='—';return;}
   if(!pw||pw.target===0){el.textContent='🎉 Tu meta es 0 cigarros hoy. ¡Tú puedes!';ps.textContent='∞';return;}
   const last=S.log.length?S.log[S.log.length-1]:null;
@@ -1167,6 +1209,16 @@ function renderPlan(){
   document.getElementById('pw-list').innerHTML=html;
   document.getElementById('pl-b').value=c.base;
   document.getElementById('pl-w').value=c.weeks;
+  document.getElementById('pl-wake').value=c.wakeHour||6;
+  document.getElementById('pl-sleep').value=c.sleepHour||22;
+}
+function recalcHorario(){
+  const wake=parseInt(document.getElementById('pl-wake').value);
+  const sleep=parseInt(document.getElementById('pl-sleep').value);
+  if(isNaN(wake)||wake<0||wake>12||isNaN(sleep)||sleep<13||sleep>23||sleep<=wake){
+    toast('Revisa las horas: despertar 0–12, dormir 13–23');return;}
+  S.cfg.wakeHour=wake;S.cfg.sleepHour=sleep;sv();renderPlan();
+  toast('Horario actualizado · intervalos recalculados');
 }
 function recalc(){
   const b=parseInt(document.getElementById('pl-b').value)||0;
