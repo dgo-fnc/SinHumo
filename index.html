@@ -680,13 +680,20 @@ const RETOS=[
 
 const ACHIEVEMENTS=[
   {id:'first', ico:'📝', name:'Primer registro', desc:'Usaste la app', check:()=>S.log.length>0},
-  {id:'1d',    ico:'🌙', name:'1 día en meta',   desc:'Un día bajo tu límite', check:()=>getStreak()>=1},
+  {id:'1d',    ico:'🌙', name:'1 día en meta',   desc:'Un día bajo tu límite', check:()=>{
+    if(!S.cfg.startDate)return false;
+    const days=Math.floor((Date.now()-new Date(S.cfg.startDate+'T00:00:00'))/864e5);
+    return days>=1&&getStreak()>=1;
+  }},
   {id:'3d',    ico:'🌟', name:'3 días',           desc:'3 días consecutivos',  check:()=>getStreak()>=3},
   {id:'7d',    ico:'🏆', name:'Una semana',       desc:'7 días en tu plan',    check:()=>getStreak()>=7},
   {id:'14d',   ico:'💪', name:'2 semanas',        desc:'14 días',              check:()=>getStreak()>=14},
   {id:'30d',   ico:'🎉', name:'Un mes',           desc:'30 días en tu plan',   check:()=>getStreak()>=30},
   {id:'half',  ico:'📉', name:'A la mitad',       desc:'Promedio ≤ 50% inicial',check:()=>{
-    const r=S.log.filter(e=>(Date.now()-new Date(e.ts))< 7*864e5);
+    if(!S.cfg.startDate)return false;
+    const days=Math.floor((Date.now()-new Date(S.cfg.startDate+'T00:00:00'))/864e5);
+    if(days<3)return false;
+    const r=S.log.filter(e=>(Date.now()-new Date(e.ts))<7*864e5);
     return S.cfg.base>0&&(r.length/7)<=S.cfg.base*0.5;
   }},
   {id:'$10',   ico:'💰', name:'Ahorro $10',       desc:'Diez dólares ahorrados',check:()=>savings()>=10},
@@ -729,7 +736,7 @@ function fmtT(ts){return new Date(ts).toLocaleTimeString('es',{hour:'2-digit',mi
 function fmtDs(ts){return new Date(ts).toLocaleDateString('es',{weekday:'short',day:'numeric',month:'short'});}
 function tdy(){const d=new Date();return`${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}`;}
 function dStr(d){return`${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}`;}
-function logDay(ds){return S.log.filter(e=>e.ts.startsWith(ds));}
+function logDay(ds){return S.log.filter(e=>dStr(new Date(e.ts))===ds);}
 function logTdy(){return logDay(tdy());}
 
 /* ════════════════════════════════════════════
@@ -809,9 +816,12 @@ function insights(){
    STREAK & SAVINGS
 ════════════════════════════════════════════ */
 function getStreak(){
+  if(!S.cfg.startDate)return 0;
   let s=0;
+  const start=new Date(S.cfg.startDate+'T00:00:00');
   for(let i=0;i<365;i++){
     const d=new Date();d.setDate(d.getDate()-i);
+    if(d<start)break;
     const ds=dStr(d),dl=logDay(ds),pw=planAt(ds);
     if(dl.length<=(pw?pw.target:S.cfg.base))s++;else break;
   }
@@ -895,6 +905,7 @@ function goTab(tab){
   curTab=tab;
   document.getElementById('pg-'+tab).classList.add('active');
   document.getElementById('tab-'+tab).classList.add('active');
+  if(tab==='inicio')renderDash();
   if(tab==='stats')renderStats();
   if(tab==='cal')renderCal();
   if(tab==='plan')renderPlan();
