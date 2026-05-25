@@ -241,7 +241,7 @@ html,body{height:100%;height:-webkit-fill-available;background:var(--bg);color:v
 /* ── EMOTION PICKER ── */
 .emo-lbl{font-size:12px;font-weight:700;color:var(--muted);letter-spacing:.8px;text-transform:uppercase;
   margin-bottom:10px;margin-top:4px}
-.emo-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:16px}
+.emo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px}
 .emo-btn{background:var(--s2);border:2px solid transparent;border-radius:13px;
   padding:10px 4px;cursor:pointer;text-align:center;transition:all .2s}
 .emo-btn.sel{border-color:var(--green);background:rgba(16,185,129,.15)}
@@ -417,6 +417,7 @@ html,body{height:100%;height:-webkit-fill-available;background:var(--bg);color:v
 
     <!-- Log button -->
     <button class="log-btn" id="log-btn" onclick="openLog()">🚬 &nbsp;Fumé un cigarro</button>
+    <button onclick="openBackLog()" style="width:100%;background:none;border:none;color:var(--muted);font-size:13px;padding:8px 0;cursor:pointer;text-decoration:underline">📝 Olvidé registrar uno</button>
 
     <!-- Progress (hidden in baseline) -->
     <div class="card" id="prog-card">
@@ -616,10 +617,31 @@ html,body{height:100%;height:-webkit-fill-available;background:var(--bg);color:v
   <div class="dlg">
     <div class="dlg-h">🚬 Registrar cigarro</div>
     <div class="dlg-s" id="dlg-sub">¿Estás seguro? Registraremos este momento y reiniciaremos el contador.</div>
-    <div class="emo-lbl">¿Por qué fumas ahora? (opcional)</div>
+    <div class="emo-lbl">¿Por qué fumaste? · puedes elegir varias</div>
     <div class="emo-grid" id="emo-grid"></div>
     <button class="btn-d" onclick="logCig()">Sí, fumé uno</button>
     <button class="btn-cancel" onclick="resisted()">💪 No, pude aguantar</button>
+  </div>
+</div>
+
+<!-- ════════════════ BACKDATED LOG DIALOG ════════════════ -->
+<div class="backdrop" id="back-dlg" onclick="closeBackDlg(event)">
+  <div class="dlg">
+    <div class="dlg-h">📝 Registrar cigarro pasado</div>
+    <div class="dlg-s">¿A qué hora fue? Hoy o ayer.</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+      <div class="sf" style="margin:0"><label>Día</label>
+        <select id="bk-day" style="width:100%;background:var(--s2);color:var(--fg);border:1px solid var(--border);border-radius:10px;padding:10px;font-size:15px">
+          <option value="0">Hoy</option>
+          <option value="1">Ayer</option>
+        </select></div>
+      <div class="sf" style="margin:0"><label>Hora</label>
+        <input id="bk-hour" type="number" min="0" max="23" placeholder="Ej: 14" style="text-align:center"></div>
+    </div>
+    <div class="emo-lbl">¿Por qué fue? · puedes elegir varias</div>
+    <div class="emo-grid" id="bk-emo-grid"></div>
+    <button class="btn-d" onclick="logBackCig()">Registrar</button>
+    <button class="btn-cancel" onclick="closeBackDlg()">Cancelar</button>
   </div>
 </div>
 
@@ -674,15 +696,17 @@ const EMOTIONS=[
   {id:'social',  emoji:'👥', label:'Social'},
   {id:'craving', emoji:'💪', label:'Antojo'},
   {id:'boredom', emoji:'😐', label:'Aburrim.'},
+  {id:'anxiety', emoji:'😤', label:'No aguanté'},
 ];
 
-const EMO_LABELS={stress:'el estrés',routine:'la rutina',social:'situaciones sociales',craving:'el antojo físico',boredom:'el aburrimiento'};
+const EMO_LABELS={stress:'el estrés',routine:'la rutina',social:'situaciones sociales',craving:'el antojo físico',boredom:'el aburrimiento',anxiety:'la ansiedad/no poder más'};
 const EMO_TIPS={
   stress:'Prueba 5 respiraciones lentas (4s inhala, 6s exhala) cuando sientas estrés.',
   routine:'Rompe el patrón: cambia de lugar o actividad en ese momento automático.',
   social:'Avisa a las personas que estás reduciendo. El apoyo social duplica la efectividad.',
   craving:'El antojo físico dura 5 min. Bebe agua fría, muévete y espera.',
   boredom:'Ten lista una actividad sustituta: música, caminar, llamar a alguien.',
+  anxiety:'El pico de ansiedad máximo dura 90 segundos. Espera ese tiempo antes de decidir.',
 };
 
 const RETOS=[
@@ -806,7 +830,7 @@ function analyze(){
   const peak=hrs.indexOf(Math.max(...hrs));
   const f=(a,b)=>S.log.filter(e=>{const h=new Date(e.ts).getHours();return h>=a&&h<b;}).length;
   const morn=f(6,12),aftn=f(12,18),eve=f(18,23),night=S.log.filter(e=>{const h=new Date(e.ts).getHours();return h>=23||h<6;}).length;
-  const ec={};S.log.forEach(e=>{if(e.emo)ec[e.emo]=(ec[e.emo]||0)+1;});
+  const ec={};S.log.forEach(e=>{getEmos(e).forEach(id=>{ec[id]=(ec[id]||0)+1;});});
   const ea=Object.entries(ec).sort((a,b)=>b[1]-a[1]);
   const days7=Array.from({length:7},(_,i)=>{const d=new Date();d.setDate(d.getDate()-(6-i));return logDay(dStr(d)).length;});
   const fh=days7.slice(0,3).reduce((a,b)=>a+b,0)/3, lh=days7.slice(4).reduce((a,b)=>a+b,0)/3;
@@ -1053,26 +1077,54 @@ function renderDash(){
 /* ════════════════════════════════════════════
    LOG DIALOG
 ════════════════════════════════════════════ */
-let selEmo=null;
+let selEmos=new Set();
+let bkSelEmos=new Set();
+function getEmos(e){if(e.emos&&e.emos.length)return e.emos;if(e.emo)return[e.emo];return[];}
+function emosStr(entry){return getEmos(entry).map(id=>(EMOTIONS.find(x=>x.id===id)||{emoji:''}).emoji).join('');}
 function openLog(){
   const pw=curWeek(),tc=logTdy().length;
   let sub='¿Estás seguro? Registraremos este momento y reiniciaremos el contador.';
   if(!isBaseline()&&pw&&tc>=pw.target&&pw.target>0)
     sub=`⚠️ Ya alcanzaste tu meta de ${pw.target} cigarro${pw.target!==1?'s':''} hoy. Esto superará tu límite.`;
   document.getElementById('dlg-sub').textContent=sub;
-  selEmo=null;
+  selEmos=new Set();
   document.getElementById('emo-grid').innerHTML=EMOTIONS.map(e=>
     `<button class="emo-btn" id="eb-${e.id}" onclick="selEmotion('${e.id}')">
       <span class="emo-ico">${e.emoji}</span><span class="emo-txt">${e.label}</span></button>`).join('');
   document.getElementById('log-dlg').classList.add('open');
 }
 function selEmotion(id){
-  selEmo=id;
-  EMOTIONS.forEach(e=>document.getElementById('eb-'+e.id).classList.toggle('sel',e.id===id));
+  if(selEmos.has(id))selEmos.delete(id);else selEmos.add(id);
+  EMOTIONS.forEach(e=>document.getElementById('eb-'+e.id).classList.toggle('sel',selEmos.has(e.id)));
+}
+function openBackLog(){
+  bkSelEmos=new Set();
+  document.getElementById('bk-hour').value=new Date().getHours();
+  document.getElementById('bk-emo-grid').innerHTML=EMOTIONS.map(e=>
+    `<button class="emo-btn" id="bkeb-${e.id}" onclick="bkSelEmotion('${e.id}')">
+      <span class="emo-ico">${e.emoji}</span><span class="emo-txt">${e.label}</span></button>`).join('');
+  document.getElementById('back-dlg').classList.add('open');
+}
+function bkSelEmotion(id){
+  if(bkSelEmos.has(id))bkSelEmos.delete(id);else bkSelEmos.add(id);
+  EMOTIONS.forEach(e=>document.getElementById('bkeb-'+e.id).classList.toggle('sel',bkSelEmos.has(e.id)));
+}
+function closeBackDlg(e){if(!e||e.target.id==='back-dlg')document.getElementById('back-dlg').classList.remove('open');}
+function logBackCig(){
+  const dayOffset=parseInt(document.getElementById('bk-day').value)||0;
+  const hour=parseInt(document.getElementById('bk-hour').value);
+  if(isNaN(hour)||hour<0||hour>23){toast('Indica una hora válida (0–23)');return;}
+  const ts=new Date();ts.setDate(ts.getDate()-dayOffset);ts.setHours(hour,0,0,0);
+  if(ts>new Date()){toast('No puedes registrar un cigarro en el futuro');return;}
+  S.log.push({id:ts.getTime(),ts:ts.toISOString(),emos:[...bkSelEmos],backdated:true});
+  S.log.sort((a,b)=>new Date(a.ts)-new Date(b.ts));
+  sv();document.getElementById('back-dlg').classList.remove('open');
+  renderDash();checkAch();tick();
+  toast('Registrado a las '+p2(hour)+':00 '+(dayOffset?'de ayer':'de hoy'));
 }
 function closeDlg(e){if(e.target.id==='log-dlg')document.getElementById('log-dlg').classList.remove('open');}
 function logCig(){
-  S.log.push({id:Date.now(),ts:new Date().toISOString(),emo:selEmo});
+  S.log.push({id:Date.now(),ts:new Date().toISOString(),emos:[...selEmos]});
   sv();document.getElementById('log-dlg').classList.remove('open');
   document.getElementById('log-btn').classList.add('pulsing');
   setTimeout(()=>document.getElementById('log-btn').classList.remove('pulsing'),700);
@@ -1102,7 +1154,7 @@ function renderStats(){
   const l7=d14.slice(-7);document.getElementById('st-sa').textContent=(l7.reduce((a,b)=>a+b.cnt,0)/7).toFixed(1);
 
   // Emotion breakdown
-  const ec={};S.log.forEach(e=>{if(e.emo)ec[e.emo]=(ec[e.emo]||0)+1;});
+  const ec={};S.log.forEach(e=>{getEmos(e).forEach(id=>{ec[id]=(ec[id]||0)+1;});});
   const ea=Object.entries(ec).sort((a,b)=>b[1]-a[1]);
   const esc=document.getElementById('emo-stats-card');
   if(ea.length>0){
@@ -1144,7 +1196,7 @@ function renderStats(){
   if(!rec.length){ll.innerHTML='<div style="color:var(--muted);text-align:center;padding:20px;font-size:14px">Aún no hay registros</div>';return;}
   const em=id=>EMOTIONS.find(e=>e.id===id);
   ll.innerHTML=rec.map(e=>`<div class="li">
-    <span>🚬${e.emo?' '+(EMOTIONS.find(x=>x.id===e.emo)||{emoji:''}).emoji:''}</span>
+    <span>🚬 ${emosStr(e)}</span>
     <span style="color:var(--muted)">${fmtDs(e.ts)}</span>
     <span>${fmtT(e.ts)}</span></div>`).join('');
 }
@@ -1181,7 +1233,7 @@ function calClick(ds,d,tgt){
     const ok=dl.length<=tgt?'✅ Dentro de meta':'⚠️ Sobre la meta';
     const em=id=>EMOTIONS.find(e=>e.id===id);
     c=`<div style="margin-bottom:10px"><strong>${dl.length}</strong> cigarros — ${ok} (meta: ${tgt})</div>`;
-    c+=dl.map(e=>`<div style="font-size:13px;color:var(--muted);padding:3px 0">🚬${e.emo?' '+(EMOTIONS.find(x=>x.id===e.emo)||{emoji:''}).emoji:''} ${fmtT(e.ts)}</div>`).join('');
+    c+=dl.map(e=>`<div style="font-size:13px;color:var(--muted);padding:3px 0">🚬 ${emosStr(e)} ${fmtT(e.ts)}</div>`).join('');
   }
   document.getElementById('cal-det').innerHTML=`<div class="det-box"><div style="font-weight:700;margin-bottom:10px;text-transform:capitalize">${lbl}</div>${c}</div>`;
 }
