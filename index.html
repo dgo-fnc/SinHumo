@@ -629,14 +629,16 @@ html,body{height:100%;height:-webkit-fill-available;background:var(--bg);color:v
   <div class="dlg">
     <div class="dlg-h">📝 Registrar cigarro pasado</div>
     <div class="dlg-s">¿A qué hora fue? Hoy o ayer.</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
       <div class="sf" style="margin:0"><label>Día</label>
         <select id="bk-day" style="width:100%;background:var(--s2);color:var(--fg);border:1px solid var(--border);border-radius:10px;padding:10px;font-size:15px">
           <option value="0">Hoy</option>
           <option value="1">Ayer</option>
         </select></div>
-      <div class="sf" style="margin:0"><label>Hora</label>
-        <input id="bk-hour" type="number" min="0" max="23" placeholder="Ej: 14" style="text-align:center"></div>
+      <div class="sf" style="margin:0"><label>Hora (0–23)</label>
+        <input id="bk-hour" type="number" min="0" max="23" placeholder="14" style="text-align:center"></div>
+      <div class="sf" style="margin:0"><label>Minuto (0–59)</label>
+        <input id="bk-min" type="number" min="0" max="59" placeholder="30" style="text-align:center"></div>
     </div>
     <div class="emo-lbl">¿Por qué fue? · puedes elegir varias</div>
     <div class="emo-grid" id="bk-emo-grid"></div>
@@ -1099,7 +1101,9 @@ function selEmotion(id){
 }
 function openBackLog(){
   bkSelEmos=new Set();
-  document.getElementById('bk-hour').value=new Date().getHours();
+  const _now=new Date();
+  document.getElementById('bk-hour').value=_now.getHours();
+  document.getElementById('bk-min').value=_now.getMinutes();
   document.getElementById('bk-emo-grid').innerHTML=EMOTIONS.map(e=>
     `<button class="emo-btn" id="bkeb-${e.id}" onclick="bkSelEmotion('${e.id}')">
       <span class="emo-ico">${e.emoji}</span><span class="emo-txt">${e.label}</span></button>`).join('');
@@ -1113,14 +1117,16 @@ function closeBackDlg(e){if(!e||e.target.id==='back-dlg')document.getElementById
 function logBackCig(){
   const dayOffset=parseInt(document.getElementById('bk-day').value)||0;
   const hour=parseInt(document.getElementById('bk-hour').value);
+  const min=parseInt(document.getElementById('bk-min').value);
   if(isNaN(hour)||hour<0||hour>23){toast('Indica una hora válida (0–23)');return;}
-  const ts=new Date();ts.setDate(ts.getDate()-dayOffset);ts.setHours(hour,0,0,0);
+  if(isNaN(min)||min<0||min>59){toast('Indica un minuto válido (0–59)');return;}
+  const ts=new Date();ts.setDate(ts.getDate()-dayOffset);ts.setHours(hour,min,0,0);
   if(ts>new Date()){toast('No puedes registrar un cigarro en el futuro');return;}
   S.log.push({id:ts.getTime(),ts:ts.toISOString(),emos:[...bkSelEmos],backdated:true});
   S.log.sort((a,b)=>new Date(a.ts)-new Date(b.ts));
   sv();document.getElementById('back-dlg').classList.remove('open');
   renderDash();checkAch();tick();
-  toast('Registrado a las '+p2(hour)+':00 '+(dayOffset?'de ayer':'de hoy'));
+  toast('Registrado a las '+p2(hour)+':'+p2(min)+' '+(dayOffset?'de ayer':'de hoy'));
 }
 function closeDlg(e){if(e.target.id==='log-dlg')document.getElementById('log-dlg').classList.remove('open');}
 function logCig(){
