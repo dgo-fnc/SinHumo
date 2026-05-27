@@ -432,6 +432,7 @@ html,body{height:100%;height:-webkit-fill-available;background:var(--bg);color:v
         <div class="pstat"><div class="pstat-v tint-green" id="ps-m">—</div><div class="pstat-l">Meta</div></div>
         <div class="pstat"><div class="pstat-v tint-amber" id="ps-p">—</div><div class="pstat-l">Próx.</div></div>
       </div>
+      <div id="week-max-row" style="display:none;text-align:center;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);font-size:13px;color:var(--green);line-height:1.5"></div>
     </div>
 
     <!-- Insights card -->
@@ -1078,6 +1079,15 @@ function renderDash(){
     const f=document.getElementById('prog-fill');f.style.width=pct+'%';f.classList.toggle('over',tc>tgt);
     document.getElementById('ps-h').textContent=tc;document.getElementById('ps-m').textContent=tgt;
   }
+  // Weekly best interval
+  const wmr=document.getElementById('week-max-row');
+  const wk7=S.log.filter(e=>(Date.now()-new Date(e.ts))/864e5<=7);
+  const wkGaps=calcGaps(wk7);
+  const wkMax=wkGaps.length?Math.max(...wkGaps):null;
+  if(wkMax&&wkMax>=20){
+    wmr.style.display='block';
+    wmr.innerHTML='🏆 Tu mejor racha esta semana: <strong>'+fmtMin(wkMax)+'</strong> sin fumar';
+  } else wmr.style.display='none';
 
   // Insights
   const ins=insights(),ic=document.getElementById('ins-card'),il=document.getElementById('ins-list');
@@ -1305,14 +1315,34 @@ function renderCal(){
 }
 function calClick(ds,d,tgt){
   if(ds>tdy())return;
-  const dl=logDay(ds),lbl=new Date(ds+'T12:00:00').toLocaleDateString('es',{weekday:'long',day:'numeric',month:'long'});
+  const dl=logDay(ds).sort((a,b)=>new Date(a.ts)-new Date(b.ts));
+  const lbl=new Date(ds+'T12:00:00').toLocaleDateString('es',{weekday:'long',day:'numeric',month:'long'});
   let c='';
   if(!dl.length)c='<div style="color:var(--green);font-weight:700;font-size:16px">🎉 ¡Ningún cigarro registrado!</div>';
   else{
     const ok=dl.length<=tgt?'✅ Dentro de meta':'⚠️ Sobre la meta';
-    const em=id=>EMOTIONS.find(e=>e.id===id);
     c=`<div style="margin-bottom:10px"><strong>${dl.length}</strong> cigarros — ${ok} (meta: ${tgt})</div>`;
     c+=dl.map(e=>`<div style="font-size:13px;color:var(--muted);padding:3px 0">🚬 ${emosStr(e)} ${fmtT(e.ts)}</div>`).join('');
+    // Interval stats for this day
+    const wake=S.cfg.wakeHour||6;
+    const wakeTs=new Date(ds+'T00:00:00');wakeTs.setHours(wake,0,0,0);
+    const firstGap=(new Date(dl[0].ts)-wakeTs)/60000;
+    const dayGaps=calcGaps(dl);
+    if(firstGap>0)dayGaps.unshift(firstGap);
+    if(dayGaps.length>0){
+      const avg=dayGaps.reduce((a,b)=>a+b,0)/dayGaps.length;
+      const max=Math.max(...dayGaps);
+      c+=`<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div style="text-align:center;background:var(--bg);border-radius:10px;padding:10px">
+          <div style="font-size:20px;font-weight:900;color:var(--muted)">${fmtMin(avg)}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:3px">Promedio entre cigarros</div>
+        </div>
+        <div style="text-align:center;background:var(--bg);border-radius:10px;padding:10px">
+          <div style="font-size:20px;font-weight:900;color:var(--green)">${fmtMin(max)}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:3px">Máximo aguantado 🏆</div>
+        </div>
+      </div>`;
+    }
   }
   document.getElementById('cal-det').innerHTML=`<div class="det-box"><div style="font-weight:700;margin-bottom:10px;text-transform:capitalize">${lbl}</div>${c}</div>`;
 }
