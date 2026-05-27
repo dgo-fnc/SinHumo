@@ -473,6 +473,26 @@ html,body{height:100%;height:-webkit-fill-available;background:var(--bg);color:v
       <div class="sbox"><div class="sv" id="st-sa">—</div><div class="sl">Promedio 7 días</div></div>
     </div>
 
+    <!-- Intervalos card -->
+    <div class="card" id="intv-card">
+      <div class="lbl">⏱️ Intervalos entre cigarros</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:10px">
+        <div style="text-align:center;background:var(--s2);border-radius:12px;padding:12px">
+          <div style="font-size:22px;font-weight:900;color:var(--muted)" id="st-avg">—</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px">Promedio real</div>
+        </div>
+        <div style="text-align:center;background:var(--s2);border-radius:12px;padding:12px">
+          <div style="font-size:22px;font-weight:900;color:var(--amber)" id="st-tgt">—</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px">Meta del plan</div>
+        </div>
+        <div style="text-align:center;background:var(--s2);border-radius:12px;padding:12px">
+          <div style="font-size:22px;font-weight:900;color:var(--green)" id="st-max">—</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px">Máximo hoy 🏆</div>
+        </div>
+      </div>
+      <div id="intv-msg" style="font-size:13px;color:var(--muted);margin-top:12px;line-height:1.55;text-align:center;padding:0 4px"></div>
+    </div>
+
     <!-- Emotion breakdown -->
     <div class="card" id="emo-stats-card" style="display:none">
       <div class="lbl">😰 Por qué fumas más</div>
@@ -1146,6 +1166,42 @@ function resisted(){
 /* ════════════════════════════════════════════
    STATS
 ════════════════════════════════════════════ */
+function fmtMin(m){
+  if(m===null||m===undefined)return'—';
+  m=Math.round(m);
+  if(m<60)return m+'m';
+  const h=Math.floor(m/60),mn=m%60;
+  return mn>0?h+'h '+mn+'m':h+'h';
+}
+function calcGaps(logs){
+  const sorted=[...logs].sort((a,b)=>new Date(a.ts)-new Date(b.ts));
+  const maxGap=wakeMins()+30;
+  const gaps=[];
+  for(let i=1;i<sorted.length;i++){
+    const diff=(new Date(sorted[i].ts)-new Date(sorted[i-1].ts))/60000;
+    if(diff>0&&diff<=maxGap)gaps.push(diff);
+  }
+  return gaps;
+}
+function avgIntervalMins(){
+  const gaps=calcGaps(S.log);
+  if(!gaps.length)return null;
+  return gaps.reduce((a,b)=>a+b,0)/gaps.length;
+}
+function maxIntervalToday(){
+  const today=logTdy().sort((a,b)=>new Date(a.ts)-new Date(b.ts));
+  if(!today.length)return null;
+  const wake=S.cfg.wakeHour||6;
+  const wakeToday=new Date();wakeToday.setHours(wake,0,0,0);
+  const now=new Date();
+  const pts=[wakeToday,...today.map(e=>new Date(e.ts)),now];
+  let maxGap=0;
+  for(let i=1;i<pts.length;i++){
+    const gap=(pts[i]-pts[i-1])/60000;
+    if(gap>0)maxGap=Math.max(maxGap,gap);
+  }
+  return maxGap>0?maxGap:null;
+}
 function renderStats(){
   const c=S.cfg;
   const start=c.startDate?new Date(c.startDate+'T00:00:00'):new Date();
@@ -1153,6 +1209,23 @@ function renderStats(){
   const savedC=Math.max(0,c.base*days-S.log.length);
   document.getElementById('st-sv').textContent=savedC;
   document.getElementById('st-sm').textContent='$'+savings().toFixed(2);
+  // Interval stats
+  const avgI=avgIntervalMins(),maxI=maxIntervalToday(),pw2=curWeek();
+  const tgtI=pw2?pw2.intv:null;
+  const ic=document.getElementById('intv-card'),im=document.getElementById('intv-msg');
+  document.getElementById('st-avg').textContent=fmtMin(avgI);
+  document.getElementById('st-tgt').textContent=tgtI?fmtMin(tgtI):'—';
+  document.getElementById('st-max').textContent=fmtMin(maxI);
+  if(avgI===null){
+    im.textContent='Registra al menos 2 cigarros para ver tus intervalos reales.';
+  } else if(tgtI&&avgI>=tgtI){
+    im.innerHTML='✅ Estás respetando los intervalos del plan. ¡Sigue así!';
+  } else if(tgtI&&avgI<tgtI){
+    const diff=Math.round(tgtI-avgI);
+    im.innerHTML='Promedio '+fmtMin(avgI)+' vs meta '+fmtMin(tgtI)+' — '+diff+' min por debajo.'+(maxI?'<br><span style="color:var(--green)">🏆 Máximo hoy: '+fmtMin(maxI)+' — ¡eso es resistencia real!</span>':'');
+  } else {
+    im.textContent='Promedio entre cigarros: '+fmtMin(avgI)+(maxI?' · Máximo hoy: '+fmtMin(maxI):'');
+  }
   const d14=Array.from({length:14},(_,i)=>{const d=new Date();d.setDate(d.getDate()-(13-i));
     const ds=dStr(d);return{ds,cnt:logDay(ds).length,lbl:d.toLocaleDateString('es',{month:'short',day:'numeric'})};});
   const best=Math.min(...d14.map(x=>x.cnt));
