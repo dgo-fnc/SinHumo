@@ -427,6 +427,13 @@ html,body{height:100%;height:-webkit-fill-available;background:var(--bg);color:v
     <button class="log-btn" id="log-btn" onclick="openLog()">🚬 &nbsp;Fumé un cigarro</button>
     <button onclick="openBackLog()" style="width:100%;background:none;border:none;color:var(--muted);font-size:13px;padding:8px 0;cursor:pointer;text-decoration:underline">📝 Olvidé registrar uno</button>
 
+    <!-- Next cigarette -->
+    <div class="card next-card" id="next-card">
+      <div class="lbl" style="color:#FDBA74">⏰ Próximo cigarro permitido</div>
+      <div class="next-big" id="next-big">—</div>
+      <div class="next-sub" id="next-sub">Configura tu plan para ver los intervalos recomendados.</div>
+    </div>
+
     <!-- Progress (hidden in baseline) -->
     <div class="card" id="prog-card">
       <div class="lbl">📊 Progreso de hoy</div>
@@ -456,13 +463,6 @@ html,body{height:100%;height:-webkit-fill-available;background:var(--bg);color:v
     <div class="card ins-card" id="ins-card" style="display:none">
       <div class="lbl">🧠 Insights de tus patrones</div>
       <div id="ins-list"></div>
-    </div>
-
-    <!-- Next cigarette -->
-    <div class="card next-card" id="next-card">
-      <div class="lbl" style="color:#FDBA74">⏰ Próximo cigarro permitido</div>
-      <div class="next-big" id="next-big">—</div>
-      <div class="next-sub" id="next-sub">Configura tu plan para ver los intervalos recomendados.</div>
     </div>
 
     <!-- Phrase -->
@@ -1297,13 +1297,29 @@ function fmtMin(m){
   const h=Math.floor(m/60),mn=m%60;
   return mn>0?h+'h '+mn+'m':h+'h';
 }
+function activeMinutesBetween(t1,t2){
+  // minutos entre t1 y t2 que caen dentro del horario activo (despierto), excluye sueño
+  const wake=S.cfg.wakeHour||6,sleep=S.cfg.sleepHour||22;
+  const start=new Date(t1),end=new Date(t2);
+  if(end<=start)return 0;
+  let total=0,cur=new Date(start);cur.setHours(0,0,0,0);
+  let guard=0;
+  while(cur<end&&guard<400){
+    const ws=new Date(cur);ws.setHours(wake,0,0,0);
+    const we=new Date(cur);we.setHours(sleep,0,0,0);
+    const segS=Math.max(start.getTime(),ws.getTime());
+    const segE=Math.min(end.getTime(),we.getTime());
+    if(segE>segS)total+=(segE-segS)/60000;
+    cur.setDate(cur.getDate()+1);guard++;
+  }
+  return total;
+}
 function calcGaps(logs){
   const sorted=[...logs].sort((a,b)=>new Date(a.ts)-new Date(b.ts));
-  const maxGap=wakeMins()+30;
   const gaps=[];
   for(let i=1;i<sorted.length;i++){
-    const diff=(new Date(sorted[i].ts)-new Date(sorted[i-1].ts))/60000;
-    if(diff>0&&diff<=maxGap)gaps.push(diff);
+    const diff=activeMinutesBetween(sorted[i-1].ts,sorted[i].ts);
+    if(diff>0)gaps.push(diff);
   }
   return gaps;
 }
@@ -1321,7 +1337,7 @@ function maxIntervalToday(){
   const pts=[wakeToday,...today.map(e=>new Date(e.ts)),now];
   let maxGap=0;
   for(let i=1;i<pts.length;i++){
-    const gap=(pts[i]-pts[i-1])/60000;
+    const gap=activeMinutesBetween(pts[i-1],pts[i]);
     if(gap>0)maxGap=Math.max(maxGap,gap);
   }
   return maxGap>0?maxGap:null;
