@@ -9,6 +9,9 @@
 <meta name="theme-color" content="#0F172A">
 <title>Sin Humo 🌱</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <style>
 :root {
   --bg:#0F172A; --surface:#1E293B; --s2:#273449; --s3:#334155;
@@ -85,7 +88,10 @@ html,body{height:100%;height:-webkit-fill-available;background:var(--bg);color:v
 .ins-item.success .ins-txt{color:#A7F3D0}
 
 /* ── NEXT & PHRASE ── */
-.next-card{background:linear-gradient(135deg,#1C1917,#292524);border:1px solid #57534E}
+.next-card{background:linear-gradient(135deg,#3B1D08,#7C2D12);border:1px solid #B45309;text-align:center}
+.next-big{font-size:46px;font-weight:900;color:#FDE68A;line-height:1.05;margin:8px 0 5px;
+  font-variant-numeric:tabular-nums;letter-spacing:-2px}
+.next-sub{font-size:14px;color:#FED7AA;line-height:1.55}
 .phrase-card{background:linear-gradient(135deg,#1E1B4B,#312E81);border-left:3px solid var(--purple)}
 .phrase-txt{font-size:15px;line-height:1.65;font-style:italic;color:#E0E7FF}
 .health-card{background:linear-gradient(135deg,#082F49,#0C4A6E);border:1px solid #0369A1}
@@ -332,6 +338,7 @@ html,body{height:100%;height:-webkit-fill-available;background:var(--bg);color:v
     </div>
     <div class="onb-footer">
       <button class="btn-p" onclick="ob1()">Continuar →</button>
+      <button class="btn-s" onclick="signInGoogle()" style="margin-top:10px">☁️ Ya usé la app antes — restaurar mis datos</button>
     </div>
   </div>
 
@@ -453,10 +460,9 @@ html,body{height:100%;height:-webkit-fill-available;background:var(--bg);color:v
 
     <!-- Next cigarette -->
     <div class="card next-card" id="next-card">
-      <div class="lbl">⏰ Próximo cigarro permitido</div>
-      <div style="font-size:14px;color:#D6D3D1;line-height:1.7" id="next-txt">
-        Configura tu plan para ver los intervalos recomendados.
-      </div>
+      <div class="lbl" style="color:#FDBA74">⏰ Próximo cigarro permitido</div>
+      <div class="next-big" id="next-big">—</div>
+      <div class="next-sub" id="next-sub">Configura tu plan para ver los intervalos recomendados.</div>
     </div>
 
     <!-- Phrase -->
@@ -575,7 +581,14 @@ html,body{height:100%;height:-webkit-fill-available;background:var(--bg);color:v
         <div class="sf" style="margin:0"><label>Te duermes a las</label>
           <input id="pl-sleep" type="number" min="13" max="23" style="text-align:center"></div>
       </div>
-      <button class="btn-p" onclick="recalcHorario()" style="margin-top:8px">Actualizar horario</button>
+      <div id="pl-window-info" style="font-size:13px;color:#A7F3D0;margin-top:10px;line-height:1.5"></div>
+      <button class="btn-p" onclick="recalcHorario()" style="margin-top:10px">Actualizar horario</button>
+    </div>
+    <div class="card mt8" id="cloud-card" style="border:1px solid rgba(59,130,246,.3);background:rgba(59,130,246,.06)">
+      <div class="lbl" style="color:#60A5FA">☁️ Respaldo en la nube</div>
+      <div id="cloud-status" style="font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.55">Cargando…</div>
+      <button class="btn-p" id="cloud-signin" onclick="signInGoogle()" style="background:linear-gradient(135deg,#2563EB,#3B82F6)">Iniciar sesión con Google</button>
+      <button class="btn-s" id="cloud-signout" onclick="signOutCloud()" style="display:none">Cerrar sesión</button>
     </div>
     <div class="card mt8" style="border:1px solid rgba(239,68,68,.25);background:rgba(239,68,68,.05)">
       <div class="lbl" style="color:#EF4444">🗑️ Zona de reinicio</div>
@@ -803,7 +816,98 @@ function defStore(){return{
 };}
 
 let S=(()=>{try{return JSON.parse(localStorage.getItem(KEY))||defStore();}catch(e){return defStore();}})();
-function sv(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
+function saveLocalOnly(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
+function sv(){if(S&&S.cfg)S.cfg.updatedAt=Date.now();saveLocalOnly();cloudPush();}
+
+/* ════════════════════════════════════════════
+   CLOUD SYNC (Firebase)
+════════════════════════════════════════════ */
+const firebaseConfig={
+  apiKey:"AIzaSyA09-JdID3vLDxvsG0bwppaCHokCJO_WzY",
+  authDomain:"sinhumo-f2ca1.firebaseapp.com",
+  projectId:"sinhumo-f2ca1",
+  storageBucket:"sinhumo-f2ca1.firebasestorage.app",
+  messagingSenderId:"923525451991",
+  appId:"1:923525451991:web:e3acbde65de1533edd6092",
+  measurementId:"G-JD1YK75SG8"
+};
+let fbAuth=null,fbDb=null,fbUser=null,cloudReady=false,pushTimer=null,lastSync=0,booted=false;
+function initCloud(){
+  if(typeof firebase==='undefined'){console.warn('Firebase SDK no cargó');return;}
+  try{
+    firebase.initializeApp(firebaseConfig);
+    fbAuth=firebase.auth();
+    fbDb=firebase.firestore();
+    try{fbDb.enablePersistence({synchronizeTabs:true}).catch(function(){});}catch(e){}
+    cloudReady=true;
+    fbAuth.onAuthStateChanged(function(u){
+      fbUser=u;updateAuthUI();
+      if(u)cloudPull();
+    });
+  }catch(e){console.warn('Cloud init error',e);}
+}
+function signInGoogle(){
+  if(!cloudReady){toast('La nube no está disponible ahora');return;}
+  const prov=new firebase.auth.GoogleAuthProvider();
+  fbAuth.signInWithPopup(prov).catch(function(e){
+    if(e&&(e.code==='auth/popup-blocked'||e.code==='auth/cancelled-popup-request'||e.code==='auth/operation-not-supported-in-this-environment')){
+      fbAuth.signInWithRedirect(prov);
+    }else{console.warn(e);toast('No se pudo iniciar sesión');}
+  });
+}
+function signOutCloud(){if(fbAuth)fbAuth.signOut().then(function(){toast('Sesión cerrada');});}
+function mergeRemote(r){
+  if(!r)return;
+  const byId={};
+  (S.log||[]).forEach(function(e){byId[e.id]=e;});
+  (r.log||[]).forEach(function(e){if(!byId[e.id])byId[e.id]=e;});
+  S.log=Object.values(byId).sort(function(a,b){return new Date(a.ts)-new Date(b.ts);});
+  S.done=Array.from(new Set([].concat(S.done||[],r.done||[])));
+  S.retos=Array.from(new Set([].concat(S.retos||[],r.retos||[])));
+  const lt=(S.cfg&&S.cfg.updatedAt)||0,rt=(r.cfg&&r.cfg.updatedAt)||0;
+  if(r.cfg&&r.cfg.setupDone&&(!S.cfg.setupDone||rt>=lt)){
+    S.cfg=Object.assign({},S.cfg,r.cfg);
+  }
+  saveLocalOnly();
+}
+function cloudPull(){
+  if(!cloudReady||!fbUser)return;
+  const ref=fbDb.collection('users').doc(fbUser.uid);
+  ref.get().then(function(snap){
+    if(snap.exists){mergeRemote(snap.data());cloudPushNow();}
+    else{cloudPushNow();}
+    lastSync=Date.now();updateAuthUI();
+    if(S.cfg.setupDone){
+      document.getElementById('onb').classList.add('hidden');
+      if(!booted)boot();else renderDash();
+    }
+  }).catch(function(e){console.warn('pull error',e);});
+}
+function cloudPush(){
+  if(!cloudReady||!fbUser)return;
+  if(pushTimer)clearTimeout(pushTimer);
+  pushTimer=setTimeout(cloudPushNow,1500);
+}
+function cloudPushNow(){
+  if(!cloudReady||!fbUser)return;
+  const ref=fbDb.collection('users').doc(fbUser.uid);
+  ref.set({cfg:S.cfg,log:S.log,done:S.done,retos:S.retos,_syncedAt:Date.now()},{merge:true})
+    .then(function(){lastSync=Date.now();updateAuthUI();})
+    .catch(function(e){console.warn('push error',e);});
+}
+function updateAuthUI(){
+  const st=document.getElementById('cloud-status'),bi=document.getElementById('cloud-signin'),bo=document.getElementById('cloud-signout');
+  if(!st)return;
+  if(fbUser){
+    st.innerHTML='✅ Conectado como <strong>'+(fbUser.email||fbUser.displayName||'tu cuenta')+'</strong><br>'+(lastSync?'Última sincronización: '+fmtT(lastSync):'Sincronizando…')+'. Tus datos se respaldan en la nube y aparecen en cualquier dispositivo.';
+    if(bi)bi.style.display='none';
+    if(bo)bo.style.display='block';
+  }else{
+    st.innerHTML='Sin conectar. Tus datos viven solo en este dispositivo. Inicia sesión para respaldarlos y verlos en otros dispositivos.';
+    if(bi)bi.style.display='block';
+    if(bo)bo.style.display='none';
+  }
+}
 
 /* ════════════════════════════════════════════
    UTILS
@@ -1041,15 +1145,15 @@ function updateHealth(el){
   }
 }
 function updateNext(){
-  const pw=curWeek(),el=document.getElementById('next-txt'),ps=document.getElementById('ps-p');
-  if(!isAwake()){el.textContent=`Estás en descanso. Tu horario activo empieza a las ${p2(S.cfg.wakeHour||6)}:00h.`;ps.textContent='😴';return;}
-  if(isBaseline()){el.textContent='Período de medición: sin metas todavía. Solo registra.';ps.textContent='—';return;}
-  if(!pw||pw.target===0){el.textContent='🎉 Tu meta es 0 cigarros hoy. ¡Tú puedes!';ps.textContent='∞';return;}
+  const pw=curWeek(),big=document.getElementById('next-big'),sub=document.getElementById('next-sub'),ps=document.getElementById('ps-p');
+  if(!isAwake()){big.textContent='😴';sub.textContent=`Estás en descanso. Tu horario activo empieza a las ${p2(S.cfg.wakeHour||6)}:00h.`;ps.textContent='😴';return;}
+  if(isBaseline()){big.textContent='📝';sub.textContent='Período de medición: sin metas todavía. Solo registra.';ps.textContent='—';return;}
+  if(!pw||pw.target===0){big.textContent='🎉 Cero';sub.textContent='Tu meta es 0 cigarros hoy. ¡Tú puedes!';ps.textContent='∞';return;}
   const last=S.log.length?S.log[S.log.length-1]:null;
-  if(!last){el.textContent=`Hoy puedes fumar ${pw.target} cig., con al menos ${pw.intv} min. entre cada uno.`;ps.textContent='Ya';return;}
+  if(!last){big.textContent='Ahora';sub.innerHTML=`Hoy puedes fumar ${pw.target} cig., con al menos <strong>${pw.intv} min</strong> entre cada uno.`;ps.textContent='Ya';return;}
   const na=new Date(new Date(last.ts).getTime()+pw.intv*6e4),now=new Date();
-  if(now>=na){el.innerHTML='✅ Ya puedes fumar según tu plan — pero antes pregúntate: <em>¿realmente lo necesito?</em>';ps.textContent='Ya';}
-  else{const rm=Math.ceil((na-now)/6e4);el.innerHTML=`⏰ Próximo a las <strong>${fmtT(na.getTime())}</strong> (en ${rm} min)<br><span style="font-size:12px;color:var(--muted)">Mínimo ${pw.intv} min entre cigarros</span>`;ps.textContent=`${rm}m`;}
+  if(now>=na){big.textContent='✅ Ahora';sub.innerHTML='Ya puedes según tu plan — pero pregúntate: <em>¿realmente lo necesito?</em>';ps.textContent='Ya';}
+  else{const rm=Math.ceil((na-now)/6e4);big.textContent=fmtT(na.getTime());sub.innerHTML=`En <strong>${rm} min</strong> · mínimo ${pw.intv} min entre cigarros`;ps.textContent=`${rm}m`;}
 }
 
 /* ════════════════════════════════════════════
@@ -1367,7 +1471,7 @@ function renderPlan(){
   const c=S.cfg,pw=curWeek(),plan=mkPlan(c.base,c.weeks),sd=new Date(c.startDate+'T00:00:00');
   if(pw){
     document.getElementById('ph-v').textContent=pw.target===0?'🎉 CERO cigarros hoy':`${pw.target} cig/día`;
-    document.getElementById('ph-s').textContent=pw.target===0?'¡Llegaste a la meta final!':`Mínimo ${pw.intv} min entre cigarros`;
+    document.getElementById('ph-s').textContent=pw.target===0?'¡Llegaste a la meta final!':`Mínimo ${pw.intv} min entre cigarros · sobre ${(c.sleepHour||22)-(c.wakeHour||6)} h activas`;
   }
   let html='';
   plan.forEach(w=>{
@@ -1383,8 +1487,12 @@ function renderPlan(){
   document.getElementById('pw-list').innerHTML=html;
   document.getElementById('pl-b').value=c.base;
   document.getElementById('pl-w').value=c.weeks;
-  document.getElementById('pl-wake').value=c.wakeHour||6;
-  document.getElementById('pl-sleep').value=c.sleepHour||22;
+  const wk=c.wakeHour||6,sl=c.sleepHour||22,winH=sl-wk;
+  document.getElementById('pl-wake').value=wk;
+  document.getElementById('pl-sleep').value=sl;
+  document.getElementById('pl-window-info').innerHTML=
+    `Los intervalos se reparten sobre tu ventana activa de <strong>${winH} h</strong> (de ${p2(wk)}:00 a ${p2(sl)}:00).`+
+    (winH<12?' <span style="color:#FCA5A5">⚠️ Parece corta — revisa tus horas si esperas un día más largo.</span>':'');
 }
 function recalcHorario(){
   const wake=parseInt(document.getElementById('pl-wake').value);
@@ -1580,6 +1688,7 @@ function toast(m){
    BOOT
 ════════════════════════════════════════════ */
 function boot(){
+  if(booted)return;booted=true;
   renderDash();
   renderCal();
   startTick();
@@ -1615,6 +1724,7 @@ function doReset(){
 }
 
 window.addEventListener('DOMContentLoaded',function(){
+  initCloud();
   if(!S.cfg.setupDone){ /* onboarding visible por defecto */ }
   else{document.getElementById('onb').classList.add('hidden');boot();}
 });
