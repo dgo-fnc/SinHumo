@@ -65,6 +65,17 @@ html,body{height:100%;height:-webkit-fill-available;background:var(--bg);color:v
 .log-btn:active{transform:scale(.97);box-shadow:0 2px 10px rgba(220,38,38,.3)}
 @keyframes pulseRed{0%{box-shadow:0 0 0 0 rgba(220,38,38,.5)}70%{box-shadow:0 0 0 22px rgba(220,38,38,0)}100%{box-shadow:0 0 0 0 rgba(220,38,38,0)}}
 .log-btn.pulsing{animation:pulseRed .6s ease-out}
+.log-btn.terea-btn{background:linear-gradient(135deg,#0E7490,#0891B2);box-shadow:0 4px 20px rgba(8,145,178,.45);font-size:15px;padding:14px;margin-bottom:12px}
+.log-btn.terea-btn:active{box-shadow:0 2px 10px rgba(8,145,178,.3)}
+@keyframes pulseCyan{0%{box-shadow:0 0 0 0 rgba(8,145,178,.5)}70%{box-shadow:0 0 0 22px rgba(8,145,178,0)}100%{box-shadow:0 0 0 0 rgba(8,145,178,0)}}
+.log-btn.terea-btn.pulsing{animation:pulseCyan .6s ease-out}
+
+/* -- TYPE TOGGLE -- */
+.type-toggle{display:flex;gap:8px;margin-bottom:14px}
+.type-opt{flex:1;background:var(--s2);border:2px solid transparent;border-radius:12px;
+  padding:11px 4px;text-align:center;cursor:pointer;font-size:13px;font-weight:700;color:var(--muted);transition:all .2s}
+.type-opt.sel{border-color:var(--green);background:rgba(16,185,129,.15);color:var(--text)}
+.type-opt.sel.terea{border-color:#0891B2;background:rgba(8,145,178,.18)}
 
 /* ── PROGRESS ── */
 .prog-hdr{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px}
@@ -424,7 +435,8 @@ html,body{height:100%;height:-webkit-fill-available;background:var(--bg);color:v
     </div>
 
     <!-- Log button -->
-    <button class="log-btn" id="log-btn" onclick="openLog()">🚬 &nbsp;Fumé un cigarro</button>
+    <button class="log-btn" id="log-btn" onclick="openLog('cig')">🚬 &nbsp;Fumé un cigarro</button>
+    <button class="log-btn terea-btn" id="terea-btn" onclick="openLog('terea')">🌫️ &nbsp;Fumé un Terea</button>
     <button onclick="openBackLog()" style="width:100%;background:none;border:none;color:var(--muted);font-size:13px;padding:8px 0;cursor:pointer;text-decoration:underline">📝 Olvidé registrar uno</button>
 
     <!-- Next cigarette -->
@@ -446,6 +458,20 @@ html,body{height:100%;height:-webkit-fill-available;background:var(--bg);color:v
         <div class="pstat"><div class="pstat-v" id="ps-h">0</div><div class="pstat-l">Hoy</div></div>
         <div class="pstat"><div class="pstat-v tint-green" id="ps-m">—</div><div class="pstat-l">Meta</div></div>
         <div class="pstat"><div class="pstat-v tint-amber" id="ps-p">—</div><div class="pstat-l">Próx.</div></div>
+      </div>
+      <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px" id="type-breakdown-row">
+        <div style="text-align:center;background:var(--s2);border-radius:10px;padding:8px 4px">
+          <div style="font-size:17px;font-weight:900" id="ps-cig">0</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:2px">🚬 Cigarros</div>
+        </div>
+        <div style="text-align:center;background:var(--s2);border-radius:10px;padding:8px 4px">
+          <div style="font-size:17px;font-weight:900;color:#67E8F9" id="ps-terea">0</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:2px">🌫️ Terea</div>
+        </div>
+        <div style="text-align:center;background:var(--s2);border-radius:10px;padding:8px 4px">
+          <div style="font-size:17px;font-weight:900;color:var(--purple)" id="ps-nic">0</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:2px">🧬 Nicotina-eq</div>
+        </div>
       </div>
       <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);display:grid;grid-template-columns:1fr 1fr;gap:8px">
         <div style="text-align:center;background:var(--s2);border-radius:10px;padding:10px 6px">
@@ -510,6 +536,26 @@ html,body{height:100%;height:-webkit-fill-available;background:var(--bg);color:v
       <div id="intv-msg" style="font-size:13px;color:var(--muted);margin-top:12px;line-height:1.55;text-align:center;padding:0 4px"></div>
     </div>
 
+    <!-- Nicotina equivalente card -->
+    <div class="card" id="nic-card" style="background:linear-gradient(135deg,#1E1B4B,#312E81);border:1px solid rgba(129,140,248,.4)">
+      <div class="lbl" style="color:#C7D2FE">🧬 Nivel real de nicotina</div>
+      <div style="font-size:12px;color:#C7D2FE;line-height:1.55;margin-bottom:12px">Un Terea equivale a 0.5 cigarrillo en nicotina. Esta métrica mide tu adicción real, más allá de cuántas unidades enciendes.</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+        <div style="text-align:center;background:rgba(0,0,0,.18);border-radius:12px;padding:12px">
+          <div style="font-size:22px;font-weight:900;color:#E0E7FF" id="nic-today">—</div>
+          <div style="font-size:11px;color:#A5B4FC;margin-top:4px">Hoy (cig-eq)</div>
+        </div>
+        <div style="text-align:center;background:rgba(0,0,0,.18);border-radius:12px;padding:12px">
+          <div style="font-size:22px;font-weight:900;color:#E0E7FF" id="nic-avg7">—</div>
+          <div style="font-size:11px;color:#A5B4FC;margin-top:4px">Prom. 7 días</div>
+        </div>
+        <div style="text-align:center;background:rgba(0,0,0,.18);border-radius:12px;padding:12px">
+          <div style="font-size:22px;font-weight:900;color:#E0E7FF" id="nic-terea-pct">—</div>
+          <div style="font-size:11px;color:#A5B4FC;margin-top:4px">% viene de Terea</div>
+        </div>
+      </div>
+    </div>
+
     <!-- Emotion breakdown -->
     <div class="card" id="emo-stats-card" style="display:none">
       <div class="lbl">😰 Por qué fumas más</div>
@@ -517,8 +563,13 @@ html,body{height:100%;height:-webkit-fill-available;background:var(--bg);color:v
     </div>
 
     <div class="card">
-      <div class="lbl">📈 Cigarros por día — 14 días</div>
+      <div class="lbl">📈 Composición diaria — 14 días</div>
       <div class="cw"><canvas id="ch-daily"></canvas></div>
+      <div style="display:flex;gap:14px;justify-content:center;margin-top:10px;flex-wrap:wrap">
+        <div class="clitem"><div class="cldot" style="background:rgba(239,68,68,.8)"></div>Cigarrillo</div>
+        <div class="clitem"><div class="cldot" style="background:rgba(8,145,178,.8)"></div>Terea</div>
+        <div class="clitem"><div class="cldot" style="background:#818CF8;border-radius:50%"></div>Nicotina-eq</div>
+      </div>
     </div>
     <div class="card">
       <div class="lbl">🕐 Hora del día en que más fumas</div>
@@ -583,6 +634,13 @@ html,body{height:100%;height:-webkit-fill-available;background:var(--bg);color:v
       </div>
       <div id="pl-window-info" style="font-size:13px;color:#A7F3D0;margin-top:10px;line-height:1.5"></div>
       <button class="btn-p" onclick="recalcHorario()" style="margin-top:10px">Actualizar horario</button>
+    </div>
+    <div class="card mt8" id="terea-price-card" style="border:1px solid rgba(8,145,178,.35);background:rgba(8,145,178,.06)">
+      <div class="lbl" style="color:#67E8F9">🌫️ Precio del Terea</div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:12px;line-height:1.5">Se usa para calcular tu ahorro real, ya que suele costar distinto a una cajetilla de cigarrillos.</div>
+      <div class="sf"><label>Precio de una cajetilla de Terea</label><input id="pl-terea-price" type="number" min="0.5" max="200" step="0.5"></div>
+      <div class="sf"><label>Unidades por cajetilla</label><input id="pl-terea-pack" type="number" min="5" max="30"></div>
+      <button class="btn-p" onclick="recalcTerea()" style="margin-top:4px;background:linear-gradient(135deg,#0E7490,#0891B2)">Actualizar precio de Terea</button>
     </div>
     <div class="card mt8" id="cloud-card" style="border:1px solid rgba(59,130,246,.3);background:rgba(59,130,246,.06)">
       <div class="lbl" style="color:#60A5FA">☁️ Respaldo en la nube</div>
@@ -659,7 +717,7 @@ html,body{height:100%;height:-webkit-fill-available;background:var(--bg);color:v
 <!-- ════════════════ LOG DIALOG ════════════════ -->
 <div class="backdrop" id="log-dlg" onclick="closeDlg(event)">
   <div class="dlg">
-    <div class="dlg-h">🚬 Registrar cigarro</div>
+    <div class="dlg-h" id="dlg-h">🚬 Registrar cigarro</div>
     <div class="dlg-s" id="dlg-sub">¿Estás seguro? Registraremos este momento y reiniciaremos el contador.</div>
     <div class="emo-lbl">¿Por qué fumaste? · puedes elegir varias</div>
     <div class="emo-grid" id="emo-grid"></div>
@@ -671,8 +729,12 @@ html,body{height:100%;height:-webkit-fill-available;background:var(--bg);color:v
 <!-- ════════════════ BACKDATED LOG DIALOG ════════════════ -->
 <div class="backdrop" id="back-dlg" onclick="closeBackDlg(event)">
   <div class="dlg">
-    <div class="dlg-h">📝 Registrar cigarro pasado</div>
-    <div class="dlg-s">¿A qué hora fue? Hoy o ayer.</div>
+    <div class="dlg-h">📝 Registrar consumo pasado</div>
+    <div class="dlg-s">¿Qué fue y a qué hora? Hoy o ayer.</div>
+    <div class="type-toggle">
+      <div class="type-opt sel" id="bk-type-cig" onclick="bkSelType('cig')">🚬 Cigarrillo</div>
+      <div class="type-opt" id="bk-type-terea" onclick="bkSelType('terea')">🌫️ Terea</div>
+    </div>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
       <div class="sf" style="margin:0"><label>Día</label>
         <select id="bk-day" style="width:100%;background:var(--s2);color:var(--fg);border:1px solid var(--border);border-radius:10px;padding:10px;font-size:15px">
@@ -788,6 +850,7 @@ const ACHIEVEMENTS=[
   }},
   {id:'$10',   ico:'💰', name:'Ahorro $10',       desc:'Diez dólares ahorrados',check:()=>savings()>=10},
   {id:'reto1', ico:'🎯', name:'Primer reto',      desc:'Completaste un reto',  check:()=>S.retos.length>=1},
+  {id:'terea1',ico:'🌫️', name:'Probaste Terea',   desc:'Registraste tu primer Terea',check:()=>S.log.some(e=>entryType(e)==='terea')},
 ];
 
 const HEALTH=[
@@ -809,13 +872,19 @@ const KEY='sinhumo_v3';
 function defStore(){return{
   cfg:{name:'',base:15,price:8,pack:20,weeks:5,setupDone:false,startDate:null,
        baselineDays:0,baselineDone:false,lastResumeTs:null,notifEnabled:false,
-       wakeHour:6,sleepHour:22},
-  log:[],   // {id,ts,emotion}
+       wakeHour:6,sleepHour:22,teareaPrice:8,teareaPack:20},
+  log:[],   // {id,ts,emotion,type:'cig'|'terea'}
   done:[],  // earned achievement ids
   retos:[],  // completed reto ids
 };}
 
 let S=(()=>{try{return JSON.parse(localStorage.getItem(KEY))||defStore();}catch(e){return defStore();}})();
+// migracion: usuarios existentes sin campos de Terea
+(function migrateTerea(){
+  if(!S.cfg)return;
+  if(S.cfg.teareaPack==null)S.cfg.teareaPack=20;
+  if(S.cfg.teareaPrice==null)S.cfg.teareaPrice=S.cfg.price||8;
+})();
 function saveLocalOnly(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
 function sv(){if(S&&S.cfg)S.cfg.updatedAt=Date.now();saveLocalOnly();cloudPush();}
 
@@ -921,6 +990,20 @@ function dStr(d){return`${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate(
 function logDay(ds){return S.log.filter(e=>dStr(new Date(e.ts))===ds);}
 function logTdy(){return logDay(tdy());}
 
+/* ---- TIPO DE CONSUMO: cigarrillo vs Terea ---- */
+const NIC_WEIGHT={cig:1,terea:0.5}; // un Terea tiene la mitad de nicotina de un cigarrillo
+function entryType(e){return e&&e.type==='terea'?'terea':'cig';}
+function nicUnits(e){return NIC_WEIGHT[entryType(e)];}
+function nicSum(list){return list.reduce((a,e)=>a+nicUnits(e),0);}
+function typeIco(e){return entryType(e)==='terea'?'🌫️':'🚬';}
+function typeLabel(t){return t==='terea'?'Terea':'Cigarrillo';}
+function unitPrice(type){
+  const c=S.cfg;
+  if(type==='terea')return(c.teareaPrice||c.price||8)/(c.teareaPack||20);
+  return(c.price||8)/(c.pack||20);
+}
+function countType(list,type){return list.filter(e=>entryType(e)===type).length;}
+
 /* ════════════════════════════════════════════
    PLAN
 ════════════════════════════════════════════ */
@@ -974,7 +1057,10 @@ function analyze(){
   const trend=lh<fh-.5?'mejorando':lh>fh+.5?'empeorando':'estable';
   const maxP=Math.max(morn,aftn,eve,night);
   const period=['mañana','tarde','noche','madrugada'][[morn,aftn,eve,night].indexOf(maxP)];
-  return{peak,hrs,morn,aftn,eve,night,ea,trend,days7,period};
+  const l7log=S.log.filter(e=>(Date.now()-new Date(e.ts))/864e5<=7);
+  const nic7=nicSum(l7log),tereaNic7=countType(l7log,'terea')*NIC_WEIGHT.terea;
+  const tereaShare=nic7>0?tereaNic7/nic7:0;
+  return{peak,hrs,morn,aftn,eve,night,ea,trend,days7,period,tereaShare};
 }
 
 function insights(){
@@ -992,6 +1078,9 @@ function insights(){
   // Trend
   if(p.trend==='mejorando') ins.push({t:'success',i:'📈',txt:'Tu consumo bajó esta semana. Tendencia positiva — mantén el ritmo.'});
   else if(p.trend==='empeorando') ins.push({t:'danger',i:'📉',txt:'Tu consumo subió esta semana. ¿Qué cambió? Identifica el detonante y ajusta.'});
+  // Terea share of real nicotine
+  if(p.tereaShare>=0.2)
+    ins.push({t:'info',i:'🧬',txt:`El ${Math.round(p.tereaShare*100)}% de tu nicotina de los últimos 7 días vino de Terea. Cuenta la mitad por unidad, pero sigue siendo nicotina real — vigila la tendencia, no solo el conteo.`});
   return ins.slice(0,3);
 }
 
@@ -1013,7 +1102,9 @@ function getStreak(){
 function savings(){
   const c=S.cfg; if(!c.startDate)return 0;
   const days=Math.max(1,Math.floor((Date.now()-new Date(c.startDate+'T00:00:00'))/864e5));
-  return Math.max(0,c.base*days-S.log.length)*(c.price/(c.pack||20));
+  const baselineSpend=c.base*days*unitPrice('cig');
+  const actualSpend=S.log.reduce((sum,e)=>sum+unitPrice(entryType(e)),0);
+  return Math.max(0,baselineSpend-actualSpend);
 }
 
 /* ════════════════════════════════════════════
@@ -1176,23 +1267,28 @@ function renderDash(){
 
   // Progress card
   const pc=document.getElementById('prog-card');
+  const todayLog=logTdy();
   if(isBaseline()){
     pc.style.display='block';
-    const tc=logTdy().length;
-    document.getElementById('prog-t').textContent=`${tc} cigarro${tc!==1?'s':''} hoy`;
+    const tc=todayLog.length;
+    document.getElementById('prog-t').textContent=`${tc} registro${tc!==1?'s':''} hoy`;
     document.getElementById('prog-m').textContent='Midiendo — sin meta aún';
     document.getElementById('prog-fill').style.width='0%';
     document.getElementById('ps-h').textContent=tc;
     document.getElementById('ps-m').textContent='—';
   } else {
     pc.style.display='block';
-    const pw=curWeek(),tgt=pw?pw.target:c.base,tc=logTdy().length;
-    document.getElementById('prog-t').textContent=`${tc} cigarro${tc!==1?'s':''}`;
+    const pw=curWeek(),tgt=pw?pw.target:c.base,tc=todayLog.length;
+    document.getElementById('prog-t').textContent=`${tc} registro${tc!==1?'s':''}`;
     document.getElementById('prog-m').textContent=`Meta: ${tgt}`;
     const pct=tgt>0?Math.min(100,(tc/tgt)*100):(tc===0?0:100);
     const f=document.getElementById('prog-fill');f.style.width=pct+'%';f.classList.toggle('over',tc>tgt);
     document.getElementById('ps-h').textContent=tc;document.getElementById('ps-m').textContent=tgt;
   }
+  // Desglose cigarrillo / Terea + nicotina equivalente de hoy
+  document.getElementById('ps-cig').textContent=countType(todayLog,'cig');
+  document.getElementById('ps-terea').textContent=countType(todayLog,'terea');
+  document.getElementById('ps-nic').textContent=nicSum(todayLog).toFixed(1).replace(/\.0$/,'');
   // Weekly best interval
   // Avg today + max week boxes (always visible)
   const todayGaps=calcGaps(logTdy().sort((a,b)=>new Date(a.ts)-new Date(b.ts)));
@@ -1225,11 +1321,16 @@ function renderDash(){
 ════════════════════════════════════════════ */
 let selEmos=new Set();
 let bkSelEmos=new Set();
+let pendingLogType='cig';
+let bkType='cig';
 function getEmos(e){if(e.emos&&e.emos.length)return e.emos;if(e.emo)return[e.emo];return[];}
 function emosStr(entry){return getEmos(entry).map(id=>(EMOTIONS.find(x=>x.id===id)||{emoji:''}).emoji).join('');}
-function openLog(){
+function openLog(type){
+  pendingLogType=type==='terea'?'terea':'cig';
   const pw=curWeek(),tc=logTdy().length;
-  let sub='¿Estás seguro? Registraremos este momento y reiniciaremos el contador.';
+  const isT=pendingLogType==='terea';
+  document.getElementById('dlg-h').textContent=isT?'🌫️ Registrar Terea':'🚬 Registrar cigarro';
+  let sub=isT?'¿Estás seguro? Un Terea tiene la mitad de nicotina de un cigarrillo, pero también reinicia el contador.':'¿Estás seguro? Registraremos este momento y reiniciaremos el contador.';
   if(!isBaseline()&&pw&&tc>=pw.target&&pw.target>0)
     sub=`⚠️ Ya alcanzaste tu meta de ${pw.target} cigarro${pw.target!==1?'s':''} hoy. Esto superará tu límite.`;
   document.getElementById('dlg-sub').textContent=sub;
@@ -1245,6 +1346,9 @@ function selEmotion(id){
 }
 function openBackLog(){
   bkSelEmos=new Set();
+  bkType='cig';
+  document.getElementById('bk-type-cig').classList.add('sel');
+  document.getElementById('bk-type-terea').classList.remove('sel');
   const _now=new Date();
   document.getElementById('bk-hour').value=_now.getHours();
   document.getElementById('bk-min').value=_now.getMinutes();
@@ -1252,6 +1356,11 @@ function openBackLog(){
     `<button class="emo-btn" id="bkeb-${e.id}" onclick="bkSelEmotion('${e.id}')">
       <span class="emo-ico">${e.emoji}</span><span class="emo-txt">${e.label}</span></button>`).join('');
   document.getElementById('back-dlg').classList.add('open');
+}
+function bkSelType(t){
+  bkType=t;
+  document.getElementById('bk-type-cig').classList.toggle('sel',t==='cig');
+  document.getElementById('bk-type-terea').classList.toggle('sel',t==='terea');
 }
 function bkSelEmotion(id){
   if(bkSelEmos.has(id))bkSelEmos.delete(id);else bkSelEmos.add(id);
@@ -1265,22 +1374,24 @@ function logBackCig(){
   if(isNaN(hour)||hour<0||hour>23){toast('Indica una hora válida (0–23)');return;}
   if(isNaN(min)||min<0||min>59){toast('Indica un minuto válido (0–59)');return;}
   const ts=new Date();ts.setDate(ts.getDate()-dayOffset);ts.setHours(hour,min,0,0);
-  if(ts>new Date()){toast('No puedes registrar un cigarro en el futuro');return;}
-  S.log.push({id:ts.getTime(),ts:ts.toISOString(),emos:[...bkSelEmos],backdated:true});
+  if(ts>new Date()){toast('No puedes registrar un consumo en el futuro');return;}
+  S.log.push({id:ts.getTime(),ts:ts.toISOString(),emos:[...bkSelEmos],type:bkType,backdated:true});
   S.log.sort((a,b)=>new Date(a.ts)-new Date(b.ts));
   sv();document.getElementById('back-dlg').classList.remove('open');
   renderDash();checkAch();tick();
-  toast('Registrado a las '+p2(hour)+':'+p2(min)+' '+(dayOffset?'de ayer':'de hoy'));
+  toast((bkType==='terea'?'🌫️ Terea':'🚬 Cigarrillo')+' registrado a las '+p2(hour)+':'+p2(min)+' '+(dayOffset?'de ayer':'de hoy'));
 }
 function closeDlg(e){if(e.target.id==='log-dlg')document.getElementById('log-dlg').classList.remove('open');}
 function logCig(){
-  S.log.push({id:Date.now(),ts:new Date().toISOString(),emos:[...selEmos]});
+  S.log.push({id:Date.now(),ts:new Date().toISOString(),emos:[...selEmos],type:pendingLogType});
   sv();document.getElementById('log-dlg').classList.remove('open');
-  document.getElementById('log-btn').classList.add('pulsing');
-  setTimeout(()=>document.getElementById('log-btn').classList.remove('pulsing'),700);
+  const btnId=pendingLogType==='terea'?'terea-btn':'log-btn';
+  document.getElementById(btnId).classList.add('pulsing');
+  setTimeout(()=>document.getElementById(btnId).classList.remove('pulsing'),700);
   renderDash();checkAch();tick();
-  if(isBaseline()) toast('Registrado 📝 Día '+baseDay()+'/'+S.cfg.baselineDays+' de medición');
-  else toast('Registrado. Cada anotación es honestidad contigo mismo.');
+  const tName=pendingLogType==='terea'?'Terea 🌫️':'cigarro 🚬';
+  if(isBaseline()) toast('Registrado ('+tName+') 📝 Día '+baseDay()+'/'+S.cfg.baselineDays+' de medición');
+  else toast('Registrado ('+tName+'). Cada anotación es honestidad contigo mismo.');
 }
 function resisted(){
   document.getElementById('log-dlg').classList.remove('open');
@@ -1367,10 +1478,18 @@ function renderStats(){
     im.textContent='Promedio entre cigarros: '+fmtMin(avgI)+(maxI?' · Máximo hoy: '+fmtMin(maxI):'');
   }
   const d14=Array.from({length:14},(_,i)=>{const d=new Date();d.setDate(d.getDate()-(13-i));
-    const ds=dStr(d);return{ds,cnt:logDay(ds).length,lbl:d.toLocaleDateString('es',{month:'short',day:'numeric'})};});
+    const ds=dStr(d),dl=logDay(ds);
+    return{ds,cnt:dl.length,cig:countType(dl,'cig'),terea:countType(dl,'terea'),nic:nicSum(dl),lbl:d.toLocaleDateString('es',{month:'short',day:'numeric'})};});
   const best=Math.min(...d14.map(x=>x.cnt));
   document.getElementById('st-sb').textContent=best;
   const l7=d14.slice(-7);document.getElementById('st-sa').textContent=(l7.reduce((a,b)=>a+b.cnt,0)/7).toFixed(1);
+
+  // Nicotina equivalente
+  const todayLog2=logTdy(),l7log=S.log.filter(e=>(Date.now()-new Date(e.ts))/864e5<=7);
+  document.getElementById('nic-today').textContent=nicSum(todayLog2).toFixed(1).replace(/\.0$/,'');
+  document.getElementById('nic-avg7').textContent=(l7.reduce((a,b)=>a+b.nic,0)/7).toFixed(1);
+  const nic7Total=nicSum(l7log),nic7Terea=countType(l7log,'terea')*NIC_WEIGHT.terea;
+  document.getElementById('nic-terea-pct').textContent=nic7Total>0?Math.round(nic7Terea/nic7Total*100)+'%':'0%';
 
   // Emotion breakdown
   const ec={};S.log.forEach(e=>{getEmos(e).forEach(id=>{ec[id]=(ec[id]||0)+1;});});
@@ -1395,12 +1514,14 @@ function renderStats(){
   const pw=curWeek(),tgt=pw?pw.target:c.base;
   const cxD=document.getElementById('ch-daily').getContext('2d');
   if(chD)chD.destroy();
-  chD=new Chart(cxD,{type:'bar',data:{labels:d14.map(x=>x.lbl),datasets:[
-    {data:d14.map(x=>x.cnt),backgroundColor:d14.map(x=>x.cnt<=tgt?'rgba(16,185,129,.8)':'rgba(239,68,68,.8)'),borderRadius:6},
-    {type:'line',data:d14.map(()=>tgt),borderColor:'rgba(245,158,11,.7)',borderDash:[4,4],borderWidth:2,pointRadius:0,fill:false}
+  chD=new Chart(cxD,{data:{labels:d14.map(x=>x.lbl),datasets:[
+    {type:'bar',label:'Cigarrillo',data:d14.map(x=>x.cig),backgroundColor:'rgba(239,68,68,.8)',borderRadius:4,stack:'s'},
+    {type:'bar',label:'Terea',data:d14.map(x=>x.terea),backgroundColor:'rgba(8,145,178,.8)',borderRadius:4,stack:'s'},
+    {type:'line',label:'Nicotina-eq',data:d14.map(x=>x.nic),borderColor:'#818CF8',backgroundColor:'#818CF8',borderWidth:2,pointRadius:2,tension:.3,fill:false},
+    {type:'line',label:'Meta',data:d14.map(()=>tgt),borderColor:'rgba(245,158,11,.7)',borderDash:[4,4],borderWidth:2,pointRadius:0,fill:false}
   ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
-    scales:{y:{beginAtZero:true,ticks:{color:'#94A3B8',stepSize:1},grid:{color:'rgba(51,65,85,.5)'}},
-      x:{ticks:{color:'#94A3B8',maxRotation:45,font:{size:9}},grid:{display:false}}}}});
+    scales:{y:{stacked:true,beginAtZero:true,ticks:{color:'#94A3B8',stepSize:1},grid:{color:'rgba(51,65,85,.5)'}},
+      x:{stacked:true,ticks:{color:'#94A3B8',maxRotation:45,font:{size:9}},grid:{display:false}}}}});
 
   const hrs=new Array(24).fill(0);S.log.forEach(e=>hrs[new Date(e.ts).getHours()]++);
   const cxH=document.getElementById('ch-hourly').getContext('2d');
@@ -1415,7 +1536,7 @@ function renderStats(){
   if(!rec.length){ll.innerHTML='<div style="color:var(--muted);text-align:center;padding:20px;font-size:14px">Aún no hay registros</div>';return;}
   const em=id=>EMOTIONS.find(e=>e.id===id);
   ll.innerHTML=rec.map(e=>`<div class="li">
-    <span>🚬 ${emosStr(e)}</span>
+    <span>${typeIco(e)} ${emosStr(e)}</span>
     <span style="color:var(--muted)">${fmtDs(e.ts)}</span>
     <span>${fmtT(e.ts)}</span></div>`).join('');
 }
@@ -1451,11 +1572,12 @@ function calClick(ds,d,tgt){
   const dl=logDay(ds).sort((a,b)=>new Date(a.ts)-new Date(b.ts));
   const lbl=new Date(ds+'T12:00:00').toLocaleDateString('es',{weekday:'long',day:'numeric',month:'long'});
   let c='';
-  if(!dl.length)c='<div style="color:var(--green);font-weight:700;font-size:16px">🎉 ¡Ningún cigarro registrado!</div>';
+  if(!dl.length)c='<div style="color:var(--green);font-weight:700;font-size:16px">🎉 ¡Ningún registro!</div>';
   else{
     const ok=dl.length<=tgt?'✅ Dentro de meta':'⚠️ Sobre la meta';
-    c=`<div style="margin-bottom:10px"><strong>${dl.length}</strong> cigarros — ${ok} (meta: ${tgt})</div>`;
-    c+=dl.map(e=>`<div style="font-size:13px;color:var(--muted);padding:3px 0">🚬 ${emosStr(e)} ${fmtT(e.ts)}</div>`).join('');
+    const cigN=countType(dl,'cig'),tereaN=countType(dl,'terea');
+    c=`<div style="margin-bottom:10px"><strong>${dl.length}</strong> registros (🚬 ${cigN} · 🌫️ ${tereaN}) — ${ok} (meta: ${tgt}) · <span style="color:var(--purple)">🧬 ${nicSum(dl).toFixed(1).replace(/\.0$/,'')} nicotina-eq</span></div>`;
+    c+=dl.map(e=>`<div style="font-size:13px;color:var(--muted);padding:3px 0">${typeIco(e)} ${emosStr(e)} ${fmtT(e.ts)}</div>`).join('');
     // Interval stats for this day
     const wake=S.cfg.wakeHour||6;
     const wakeTs=new Date(ds+'T00:00:00');wakeTs.setHours(wake,0,0,0);
@@ -1509,6 +1631,8 @@ function renderPlan(){
   document.getElementById('pl-window-info').innerHTML=
     `Los intervalos se reparten sobre tu ventana activa de <strong>${winH} h</strong> (de ${p2(wk)}:00 a ${p2(sl)}:00).`+
     (winH<12?' <span style="color:#FCA5A5">⚠️ Parece corta — revisa tus horas si esperas un día más largo.</span>':'');
+  document.getElementById('pl-terea-price').value=c.teareaPrice||8;
+  document.getElementById('pl-terea-pack').value=c.teareaPack||20;
 }
 function recalcHorario(){
   const wake=parseInt(document.getElementById('pl-wake').value);
@@ -1523,6 +1647,13 @@ function recalc(){
   const w=parseInt(document.getElementById('pl-w').value)||0;
   if(b<1||w<2){toast('Valores invalidos');return;}
   S.cfg.base=b;S.cfg.weeks=w;sv();renderPlan();toast('Plan actualizado');
+}
+function recalcTerea(){
+  const price=parseFloat(document.getElementById('pl-terea-price').value);
+  const pack=parseInt(document.getElementById('pl-terea-pack').value);
+  if(isNaN(price)||price<0.5||isNaN(pack)||pack<5){toast('Revisa el precio y las unidades por cajetilla de Terea');return;}
+  S.cfg.teareaPrice=price;S.cfg.teareaPack=pack;sv();
+  toast('Precio de Terea actualizado · el ahorro se recalculará');
 }
 
 /* ════════════════════════════════════════════
